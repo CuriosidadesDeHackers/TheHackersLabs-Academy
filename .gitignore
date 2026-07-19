@@ -1,0 +1,19 @@
+# Python
+backend/venv/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/**/*.pyc
+backend/media/
+backend/.env
+backend/db.sqlite3
+backend/django_cache/
+backend/staticfiles/
+
+# Node
+frontend/node_modules/
+frontend/build/
+frontend/.env
+
+# OS
+.DS_Store
+django_cache/
