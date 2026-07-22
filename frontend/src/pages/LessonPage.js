@@ -20,6 +20,34 @@ function getVimeoId(url) {
   return m ? m[1] : null;
 }
 
+const ALLOWED_EMBED_HOSTS = ['www.youtube.com', 'youtube.com', 'youtube-nocookie.com', 'www.youtube-nocookie.com', 'player.vimeo.com'];
+function getSafeEmbedSrc(embedCode) {
+  const m = embedCode?.match(/<iframe\b[^>]*\ssrc=["']([^"']+)["']/i);
+  if (!m) return null;
+  try {
+    const url = new URL(m[1]);
+    if (url.protocol === 'https:' && ALLOWED_EMBED_HOSTS.includes(url.hostname)) return url.href;
+  } catch {}
+  return null;
+}
+
+function EmbedPlayer({ embedCode }) {
+  const src = getSafeEmbedSrc(embedCode);
+  if (!src) return null;
+  return (
+    <div style={{ position: 'relative', paddingTop: '56.25%', marginBottom: 24, borderRadius: 'var(--r4)', overflow: 'hidden', border: '1px solid var(--line)', background: '#000' }}>
+      <iframe
+        src={src}
+        title="Contenido embebido"
+        frameBorder="0"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowFullScreen
+        style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
+      />
+    </div>
+  );
+}
+
 function VideoPlayer({ url }) {
   if (!url) return null;
   const ytId = getYouTubeId(url);
@@ -725,10 +753,7 @@ export default function LessonPage() {
 
         {/* Embed */}
         {lesson.content_type === 'embed' && lesson.embed_code && (
-          <div
-            dangerouslySetInnerHTML={{ __html: lesson.embed_code }}
-            style={{ marginBottom: 24, borderRadius: 'var(--r4)', overflow: 'hidden', border: '1px solid var(--line)' }}
-          />
+          <EmbedPlayer embedCode={lesson.embed_code} />
         )}
 
         {/* Markdown content */}

@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from django.utils.text import slugify
 from apps.accounts.serializers import UserPublicSerializer
+from .embed_sanitizer import sanitize_embed_code
 from .models import Course, Module, Lesson, LessonProgress, LessonAttachment, Certificate
 
 
@@ -127,6 +128,9 @@ class LessonWriteSerializer(serializers.ModelSerializer):
             'content', 'duration_minutes', 'order', 'is_free_preview',
         )
         read_only_fields = ('id', 'module')
+
+    def validate_embed_code(self, value):
+        return sanitize_embed_code(value)
 
 
 class CertificateSerializer(serializers.ModelSerializer):
