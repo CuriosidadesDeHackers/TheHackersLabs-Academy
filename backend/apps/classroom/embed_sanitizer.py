@@ -3,6 +3,7 @@
 Solo se permite un único <iframe> apuntando a un dominio de la allowlist,
 con un subconjunto de atributos seguros.
 """
+from html import escape
 from html.parser import HTMLParser
 from urllib.parse import urlparse
 
@@ -78,7 +79,7 @@ def sanitize_embed_code(raw):
     safe_attrs = {k: v for k, v in parser.iframe_attrs.items() if k in ALLOWED_IFRAME_ATTRS}
     safe_attrs['src'] = src
     attr_str = ' '.join(
-        f'{k}="{v}"' if v is not None else k
+        f'{k}="{escape(v, quote=True)}"' if v is not None else k
         for k, v in safe_attrs.items()
     )
     return f'<iframe {attr_str}></iframe>'
