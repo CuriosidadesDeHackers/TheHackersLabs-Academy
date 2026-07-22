@@ -291,12 +291,25 @@ class StripeWebhookView(APIView):
 # ── Simulate subscribe (dev/fallback) ────────────────────────────────────────
 
 class SimulateSubscribeView(APIView):
-    """Demo: crea/actualiza membresía sin pasar por Stripe."""
+    """Demo: crea/actualiza membresía sin pasar por Stripe.
+
+    Solo debe estar disponible cuando Stripe no está configurado (instancias
+    de demo/desarrollo sin cobro real). Si Stripe está activo, este endpoint
+    permitiría a cualquier usuario autenticado auto-otorgarse una membresía
+    (incluida 'lifetime') sin pagar, así que se bloquea en ese caso.
+    """
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
         from django.utils import timezone
         from datetime import timedelta
+
+        config = SiteConfig.get()
+        if config.stripe_secret_key:
+            return Response(
+                {'detail': 'Stripe está configurado. Usa el checkout real para suscribirte.'},
+                status=403,
+            )
 
         plan_id = request.data.get('plan_id')
         try:
