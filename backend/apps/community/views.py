@@ -244,7 +244,7 @@ class CommentDetailView(generics.RetrieveUpdateDestroyAPIView):
 class PostAttachmentListCreateView(generics.ListCreateAPIView):
     """GET/POST /api/community/posts/<post_pk>/attachments/"""
     serializer_class   = PostAttachmentSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsAuthorOrAdminOrReadOnly]
 
     def get_queryset(self):
         return PostAttachment.objects.filter(post_id=self.kwargs['post_pk'])
@@ -253,7 +253,9 @@ class PostAttachmentListCreateView(generics.ListCreateAPIView):
         from apps.classroom.models import validate_file_extension
         from rest_framework.exceptions import ValidationError as DRFValidationError
         from django.core.exceptions import ValidationError as DjangoValidationError
-        post = Post.objects.get(pk=self.kwargs['post_pk'])
+        from django.shortcuts import get_object_or_404
+        post = get_object_or_404(Post, pk=self.kwargs['post_pk'])
+        self.check_object_permissions(self.request, post)
         file = self.request.FILES.get('file')
         if file:
             try:
@@ -268,11 +270,24 @@ class PostAttachmentListCreateView(generics.ListCreateAPIView):
 
 
 class PostAttachmentDeleteView(generics.DestroyAPIView):
-    """DELETE /api/community/attachments/<pk>/"""
+    """DELETE /api/community/attachments/<pk>/ — puede borrarlo quien lo
+    subió, el autor del post donde quedó adjuntado, o un admin."""
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return PostAttachment.objects.filter(uploaded_by=self.request.user)
+        return PostAttachment.objects.select_related('post')
+
+    def get_object(self):
+        from django.shortcuts import get_object_or_404
+        from rest_framework.exceptions import PermissionDenied
+        obj = get_object_or_404(self.get_queryset(), pk=self.kwargs['pk'])
+        user = self.request.user
+        is_owner = obj.uploaded_by_id == user.id
+        is_post_author = obj.post.author_id == user.id
+        is_admin = getattr(user, 'role', None) == 'admin' or user.is_staff
+        if not (is_owner or is_post_author or is_admin):
+            raise PermissionDenied('No tienes permiso para eliminar este adjunto.')
+        return obj
 
     def perform_destroy(self, instance):
         import os
