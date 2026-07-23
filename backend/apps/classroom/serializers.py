@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from django.urls import reverse
 from django.utils.text import slugify
 from apps.accounts.serializers import UserPublicSerializer
 from .embed_sanitizer import sanitize_embed_code
@@ -166,7 +167,7 @@ class LessonAttachmentSerializer(serializers.ModelSerializer):
     def get_file_url(self, obj):
         request = self.context.get('request')
         if obj.file and request:
-            return request.build_absolute_uri(obj.file.url)
+            return request.build_absolute_uri(reverse('attachment_download', args=[obj.pk]))
         return None
 
     def get_file_size_display(self, obj):

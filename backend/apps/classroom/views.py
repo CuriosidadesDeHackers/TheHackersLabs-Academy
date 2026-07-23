@@ -364,6 +364,31 @@ class LessonAttachmentListCreateView(generics.ListCreateAPIView):
         serializer.save(lesson=lesson, uploaded_by=self.request.user, file=file, name=name)
 
 
+class LessonAttachmentDownloadView(APIView):
+    """GET /api/classroom/attachments/<pk>/download/ — el fichero no se sirve
+    bajo /media/ público; solo se entrega aquí, comprobando membresía activa
+    y que el usuario puede ver la lección (misma regla que LessonDetailView)."""
+    permission_classes = [permissions.IsAuthenticated, HasActiveMembership]
+
+    def get(self, request, pk):
+        import os
+        from django.http import FileResponse, Http404
+        from apps.classroom.models import LessonAttachment
+
+        attachment = get_object_or_404(
+            LessonAttachment.objects.select_related('lesson__module__course'), pk=pk
+        )
+        if not _visible_lessons(request.user).filter(pk=attachment.lesson_id).exists():
+            raise Http404
+        if not attachment.file or not os.path.isfile(attachment.file.path):
+            raise Http404
+        return FileResponse(
+            open(attachment.file.path, 'rb'),
+            as_attachment=True,
+            filename=os.path.basename(attachment.file.name),
+        )
+
+
 class LessonAttachmentDeleteView(generics.DestroyAPIView):
     """DELETE /api/classroom/attachments/<pk>/"""
     permission_classes = [IsAdminOrOwnerInstructor]

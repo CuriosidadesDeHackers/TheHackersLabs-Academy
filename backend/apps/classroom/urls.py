@@ -4,7 +4,7 @@ from .views import (
     ModuleCreateView, ModuleUpdateView, ModuleDeleteView,
     LessonDetailView, LessonCreateView, LessonUpdateView, LessonDeleteView,
     MarkLessonCompleteView,
-    LessonAttachmentListCreateView, LessonAttachmentDeleteView, StorageInfoView,
+    LessonAttachmentListCreateView, LessonAttachmentDeleteView, LessonAttachmentDownloadView, StorageInfoView,
     AdminUserProgressListView, AdminUserProgressDetailView,
     CertificateListView, CertificateVerifyView,
 )
@@ -32,6 +32,7 @@ urlpatterns = [
     # Attachments
     path('lessons/<int:lesson_id>/attachments/', LessonAttachmentListCreateView.as_view(), name='lesson_attachments'),
     path('attachments/<int:pk>/', LessonAttachmentDeleteView.as_view(), name='attachment_delete'),
+    path('attachments/<int:pk>/download/', LessonAttachmentDownloadView.as_view(), name='attachment_download'),
 
     # Certificates
     path('certificates/', CertificateListView.as_view(), name='certificate_list'),
