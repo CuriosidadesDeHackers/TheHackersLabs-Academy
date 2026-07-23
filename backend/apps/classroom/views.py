@@ -245,7 +245,7 @@ class MarkLessonCompleteView(APIView):
             progress.completed = True
             progress.completed_at = timezone.now()
             progress.save()
-            LeaderboardPoint.objects.create(
+            LeaderboardPoint.objects.get_or_create(
                 user=request.user,
                 action=LeaderboardPoint.LESSON_COMPLETED,
                 reference_id=lesson.id
@@ -259,6 +259,11 @@ class MarkLessonCompleteView(APIView):
 
     def delete(self, request, lesson_pk):
         LessonProgress.objects.filter(user=request.user, lesson_id=lesson_pk).update(completed=False, completed_at=None)
+        deleted, _ = LeaderboardPoint.objects.filter(
+            user=request.user, action=LeaderboardPoint.LESSON_COMPLETED, reference_id=lesson_pk
+        ).delete()
+        if deleted:
+            LeaderboardPoint.recalculate(request.user)
         return Response({'completed': False})
 
     def _maybe_issue_certificate(self, user, course):

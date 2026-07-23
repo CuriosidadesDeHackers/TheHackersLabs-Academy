@@ -30,6 +30,12 @@ class LeaderboardPoint(models.Model):
         verbose_name = 'punto de clasificación'
         verbose_name_plural = 'puntos de clasificación'
         ordering = ['-created_at']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'action', 'reference_id'],
+                name='unique_point_per_user_action_reference',
+            ),
+        ]
 
     def __str__(self):
         return f"{self.user} +{self.points} ({self.action})"
@@ -38,7 +44,15 @@ class LeaderboardPoint(models.Model):
         if not self.pk:
             self.points = self.ACTION_POINTS.get(self.action, 0)
         super().save(*args, **kwargs)
-        self.user.points = LeaderboardPoint.objects.filter(user=self.user).aggregate(
+        LeaderboardPoint.recalculate(self.user)
+
+    @staticmethod
+    def recalculate(user):
+        """Recalcula user.points desde cero a partir de los eventos vigentes.
+        Debe llamarse también tras borrar un LeaderboardPoint (p.ej. al
+        revertir un like o una lección completada), ya que el delete() de un
+        queryset no invoca save()."""
+        user.points = LeaderboardPoint.objects.filter(user=user).aggregate(
             total=models.Sum('points')
         )['total'] or 0
-        self.user.save(update_fields=['points'])
+        user.save(update_fields=['points'])

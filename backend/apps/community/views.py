@@ -307,6 +307,14 @@ class LikeToggleView(APIView):
         like, created = Like.objects.get_or_create(post=post, user=request.user)
         if not created:
             like.delete()
+            deleted, _ = LeaderboardPoint.objects.filter(
+                user=post.author, action=LeaderboardPoint.LIKE_RECEIVED, reference_id=post.id
+            ).delete()
+            if deleted:
+                LeaderboardPoint.recalculate(post.author)
             return Response({'liked': False, 'likes_count': post.likes_count})
-        LeaderboardPoint.objects.create(user=post.author, action=LeaderboardPoint.LIKE_RECEIVED, reference_id=post.id)
+        if post.author_id != request.user.id:
+            LeaderboardPoint.objects.get_or_create(
+                user=post.author, action=LeaderboardPoint.LIKE_RECEIVED, reference_id=post.id
+            )
         return Response({'liked': True, 'likes_count': post.likes_count})
