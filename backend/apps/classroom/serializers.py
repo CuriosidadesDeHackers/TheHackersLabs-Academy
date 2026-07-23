@@ -88,6 +88,21 @@ class CourseWriteSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("El título no puede estar vacío.")
         return value.strip()
 
+    def validate_instructor(self, value):
+        """IsAdminOrOwnerInstructor autoriza QUIÉN puede editar el curso, pero
+        no restringe QUÉ campos puede tocar: sin esto, el propio instructor
+        propietario podía reasignar instructor a cualquier otro usuario y
+        perder su propio acceso de edición. Reasignar la titularidad del
+        curso queda reservado a un admin."""
+        request = self.context.get('request')
+        is_admin = bool(request) and getattr(request.user, 'role', None) == 'admin'
+        if is_admin:
+            return value
+        current = self.instance.instructor if self.instance else None
+        if value != current:
+            raise serializers.ValidationError('Solo un administrador puede reasignar el instructor del curso.')
+        return value
+
     def _generate_unique_slug(self, title, instance=None):
         base = slugify(title)
         slug = base
