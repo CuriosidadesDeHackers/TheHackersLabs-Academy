@@ -53,6 +53,20 @@ def _notify_users_of_new_lesson(lesson):
     Notification.objects.bulk_create(notifications, ignore_conflicts=True)
 
 
+def _visible_lessons(user, qs=None):
+    """Lecciones visibles para `user`: admin ve todo, instructor ve las suyas
+    + las de cursos publicados, el resto solo las de cursos publicados.
+    Mismo criterio que CourseListView/CourseDetailView aplican a Course."""
+    if qs is None:
+        qs = Lesson.objects.select_related('module__course')
+    role = getattr(user, 'role', 'member')
+    if role == 'admin':
+        return qs
+    if role == 'instructor':
+        return qs.filter(module__course__instructor=user) | qs.filter(module__course__is_published=True)
+    return qs.filter(module__course__is_published=True)
+
+
 # ─── Course views ──────────────────────────────────────────────────────────────
 
 class CourseListView(generics.ListAPIView):
@@ -172,7 +186,9 @@ class ModuleDeleteView(generics.DestroyAPIView):
 class LessonDetailView(generics.RetrieveAPIView):
     serializer_class = LessonSerializer
     permission_classes = [permissions.IsAuthenticated, HasActiveMembership]
-    queryset = Lesson.objects.select_related('module__course')
+
+    def get_queryset(self):
+        return _visible_lessons(self.request.user)
 
     def get_serializer_context(self):
         return {'request': self.request}
@@ -219,9 +235,8 @@ class MarkLessonCompleteView(APIView):
     permission_classes = [permissions.IsAuthenticated, HasActiveMembership]
 
     def post(self, request, lesson_pk):
-        try:
-            lesson = Lesson.objects.get(pk=lesson_pk)
-        except Lesson.DoesNotExist:
+        lesson = _visible_lessons(request.user).filter(pk=lesson_pk).first()
+        if lesson is None:
             return Response(status=status.HTTP_404_NOT_FOUND)
 
         progress, created = LessonProgress.objects.get_or_create(user=request.user, lesson=lesson)
@@ -327,7 +342,7 @@ class LessonAttachmentListCreateView(generics.ListCreateAPIView):
         return [IsAdminOrOwnerInstructor()]
 
     def get_queryset(self):
-        lesson = get_object_or_404(Lesson, pk=self.kwargs['lesson_id'])
+        lesson = get_object_or_404(_visible_lessons(self.request.user), pk=self.kwargs['lesson_id'])
         return lesson.attachments.all()
 
     def get_serializer_context(self):
